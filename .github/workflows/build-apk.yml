@@ -11,6 +11,9 @@ jobs:
   build:
     runs-on: ubuntu-24.04
 
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -21,31 +24,25 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Configure Android SDK
-        shell: bash
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Accept Android SDK licenses
-        shell: bash
+      - name: Install Android SDK packages
         run: |
-          set -o pipefail
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$SDKMANAGER" --licenses || {
-            echo "Android SDK license acceptance failed"
-            exit 1
-          }
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: |
+          gradle --no-daemon assembleDebug --stacktrace
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: DeLuxePDFReader-APK
